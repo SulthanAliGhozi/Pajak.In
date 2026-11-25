@@ -125,35 +125,83 @@
                 <div class="civic-card p-5 sm:p-6">
                     <h2 id="aksi-pembayaran-heading" class="text-base font-bold text-[#0F2942]">Pelunasan Tagihan Pajak</h2>
                     <p class="mt-1 text-sm text-[#475569]">
-                        Pilih metode pembayaran yang diinginkan. Sistem akan menghitung ulang denda terbaru secara otomatis saat transaksi diproses.
+                        Bayar tagihan menggunakan Midtrans Snap (Sandbox) untuk simulasi Virtual Account, QRIS, atau E-Wallet. Denda terbaru dihitung ulang otomatis saat transaksi dibuat.
                     </p>
 
-                    <form method="POST" action="{{ route('wp.tagihan.bayar', $tagihan) }}" class="mt-5 space-y-4" data-loading-submit>
-                        @csrf
+                    <div class="mt-4 rounded-md border border-[#E2E8F0] bg-[#F4F6F9] p-3.5 text-xs text-[#475569]">
+                        Total yang harus dibayar:
+                        <strong class="block mt-1 text-base font-bold text-[#0F2942] tabular-nums">
+                            Rp {{ number_format((float) $tagihan->total_tagihan, 0, ',', '.') }}
+                        </strong>
+                    </div>
 
-                        <div>
-                            <label for="metode_pembayaran" class="block text-sm font-semibold text-[#0F172A]">Metode Pembayaran *</label>
-                            <select id="metode_pembayaran" name="metode_pembayaran" required class="civic-input mt-1.5">
-                                <option value="Virtual Account Bank" @selected(old('metode_pembayaran') === 'Virtual Account Bank')>Virtual Account Bank</option>
-                                <option value="QRIS Simulasi" @selected(old('metode_pembayaran') === 'QRIS Simulasi')>QRIS Simulasi</option>
-                                <option value="Loket Samsat" @selected(old('metode_pembayaran') === 'Loket Samsat')>Loket Samsat</option>
-                            </select>
-                            @error('metode_pembayaran')
-                                <p class="mt-1 text-xs font-medium text-[#991B1B]">{{ $message }}</p>
-                            @enderror
-                        </div>
+                    <div id="midtrans-status-box" role="status" class="hidden mt-4 rounded-md border px-3.5 py-2.5 text-xs font-medium"></div>
 
-                        <div class="rounded-md border border-[#E2E8F0] bg-[#F4F6F9] p-3.5 text-xs text-[#475569]">
-                            Nominal yang akan dibayarkan:
-                            <strong class="block mt-1 text-base font-bold text-[#0F2942] tabular-nums">
-                                Rp {{ number_format((float) $tagihan->total_tagihan, 0, ',', '.') }}
-                            </strong>
-                        </div>
-
-                        <button type="submit" data-loading-text="Memproses pembayaran..." class="civic-btn-primary w-full">
-                            Bayar Tagihan Sekarang
+                    <div class="mt-4 space-y-2.5">
+                        <button
+                            type="button"
+                            data-midtrans-pay
+                            data-token-url="{{ route('wp.tagihan.midtrans.token', $tagihan) }}"
+                            data-sync-url="{{ route('wp.tagihan.midtrans.sync', $tagihan) }}"
+                            class="civic-btn-primary w-full"
+                        >
+                            Bayar via Midtrans Snap (Sandbox)
                         </button>
-                    </form>
+
+                        @if (!empty($tagihan->midtrans_order_id))
+                            <div class="rounded-md border border-[#E2E8F0] bg-[#F4F6F9] p-3 text-xs text-[#475569] space-y-2">
+                                <p>
+                                    Order Midtrans terakhir: <strong class="text-[#0F172A] tabular-nums">{{ $tagihan->midtrans_order_id }}</strong>
+                                    ({{ strtoupper((string) ($tagihan->midtrans_status ?? 'pending')) }})
+                                </p>
+                                <div class="flex flex-wrap gap-2">
+                                    <form method="POST" action="{{ route('wp.tagihan.midtrans.sync', $tagihan) }}" data-loading-submit>
+                                        @csrf
+                                        <button type="submit" data-loading-text="Memeriksa status..." class="civic-btn-navy text-xs">
+                                            Periksa Status Midtrans
+                                        </button>
+                                    </form>
+                                    @if (!empty($tagihan->midtrans_redirect_url))
+                                        <a href="{{ $tagihan->midtrans_redirect_url }}" target="_blank" rel="noopener" class="civic-btn-secondary text-xs">
+                                            Buka Halaman Midtrans
+                                        </a>
+                                    @endif
+                                </div>
+                            </div>
+                        @endif
+                    </div>
+
+                    <details class="mt-5 border-t border-[#E2E8F0] pt-4">
+                        <summary class="text-xs font-semibold text-[#0F2942] hover:underline">
+                            Opsi Cadangan: Simulasi Pelunasan Instan (Offline)
+                        </summary>
+                        <form method="POST" action="{{ route('wp.tagihan.bayar', $tagihan) }}" class="mt-3 space-y-3" data-loading-submit>
+                            @csrf
+                            <div>
+                                <label for="metode_pembayaran" class="block text-xs font-semibold text-[#0F172A]">Metode Pembayaran *</label>
+                                <select id="metode_pembayaran" name="metode_pembayaran" required class="civic-input mt-1">
+                                    <option value="Virtual Account Bank" @selected(old('metode_pembayaran') === 'Virtual Account Bank')>Virtual Account Bank</option>
+                                    <option value="QRIS Simulasi" @selected(old('metode_pembayaran') === 'QRIS Simulasi')>QRIS Simulasi</option>
+                                    <option value="Loket Samsat" @selected(old('metode_pembayaran') === 'Loket Samsat')>Loket Samsat</option>
+                                </select>
+                                @error('metode_pembayaran')
+                                    <p class="mt-1 text-xs font-medium text-[#991B1B]">{{ $message }}</p>
+                                @enderror
+                            </div>
+                            <button type="submit" data-loading-text="Memproses pembayaran..." class="civic-btn-secondary w-full text-xs">
+                                Konfirmasi Pelunasan Offline
+                            </button>
+                        </form>
+                    </details>
+
+                    @if (!empty(config('services.midtrans.client_key')))
+                        @php
+                            $snapScriptUrl = config('services.midtrans.is_production')
+                                ? 'https://app.midtrans.com/snap/snap.js'
+                                : 'https://app.sandbox.midtrans.com/snap/snap.js';
+                        @endphp
+                        <script src="{{ $snapScriptUrl }}" data-client-key="{{ config('services.midtrans.client_key') }}" defer></script>
+                    @endif
                 </div>
             @endif
         </section>

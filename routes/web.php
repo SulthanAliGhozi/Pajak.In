@@ -51,6 +51,10 @@ Route::middleware(['auth', 'role:wajib_pajak'])
         Route::get('/tagihan', [WpTagihanController::class, 'index'])->name('tagihan.index');
         Route::get('/tagihan/{tagihan}', [WpTagihanController::class, 'show'])->name('tagihan.show');
         Route::post('/tagihan/{tagihan}/bayar', [WpPembayaranController::class, 'store'])->name('tagihan.bayar');
+        Route::post('/tagihan/{tagihan}/midtrans-token', [WpPembayaranController::class, 'createMidtransToken'])
+            ->name('tagihan.midtrans.token');
+        Route::post('/tagihan/{tagihan}/midtrans-sync', [WpPembayaranController::class, 'syncMidtrans'])
+            ->name('tagihan.midtrans.sync');
         Route::get('/pembayaran/{pembayaran}/etbpkp', [WpPembayaranController::class, 'downloadEtbpkp'])
             ->name('pembayaran.etbpkp');
     });

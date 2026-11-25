@@ -2,10 +2,12 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Api\MidtransWebhookController;
 use App\Http\Controllers\Api\TaxReferenceApiController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/health', [TaxReferenceApiController::class, 'health'])->name('api.health');
+Route::post('/midtrans/callback', [MidtransWebhookController::class, 'handle'])->name('api.midtrans.callback');
 
 Route::prefix('v1')
     ->middleware('tax_api_key')

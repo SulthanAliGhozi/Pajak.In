@@ -22,6 +22,10 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'tarif_sumber',
     'regulation_note',
     'status',
+    'midtrans_order_id',
+    'midtrans_snap_token',
+    'midtrans_redirect_url',
+    'midtrans_status',
 ])]
 class TagihanPajak extends Model
 {

@@ -226,6 +226,100 @@ function initApplyReferenceNjkb() {
     });
 }
 
+function initMidtransPayment() {
+    const payButton = document.querySelector('[data-midtrans-pay]');
+    if (!payButton) return;
+
+    const statusBox = document.getElementById('midtrans-status-box');
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+    const setStatus = (state, message) => {
+        if (!statusBox) return;
+        statusBox.classList.remove(
+            'hidden',
+            'bg-[#F4F6F9]', 'text-[#0F172A]', 'border-[#E2E8F0]',
+            'bg-[#D1FAE5]', 'text-[#065F46]', 'border-[#10B981]/40',
+            'bg-[#FEE2E2]', 'text-[#991B1B]', 'border-[#EF4444]/40',
+        );
+        if (state === 'success') {
+            statusBox.classList.add('bg-[#D1FAE5]', 'text-[#065F46]', 'border-[#10B981]/40');
+        } else if (state === 'error') {
+            statusBox.classList.add('bg-[#FEE2E2]', 'text-[#991B1B]', 'border-[#EF4444]/40');
+        } else {
+            statusBox.classList.add('bg-[#F4F6F9]', 'text-[#0F172A]', 'border-[#E2E8F0]');
+        }
+        statusBox.textContent = message;
+    };
+
+    const syncStatus = async (syncUrl) => {
+        setStatus('loading', 'Memverifikasi status pembayaran ke Midtrans...');
+        try {
+            const res = await fetch(syncUrl, {
+                method: 'POST',
+                headers: { Accept: 'application/json', 'X-CSRF-TOKEN': csrfToken },
+            });
+            const data = await res.json();
+            if (res.ok && data.status === 'lunas') {
+                setStatus('success', data.message || 'Pembayaran berhasil. Memuat ulang halaman...');
+                window.location.reload();
+                return;
+            }
+            setStatus(res.ok ? 'loading' : 'error', data.message || data.error || 'Status pembayaran masih pending.');
+            if (res.ok) {
+                window.location.reload();
+            }
+        } catch {
+            setStatus('error', 'Gagal memverifikasi status pembayaran. Gunakan tombol Periksa Status Midtrans.');
+        }
+    };
+
+    payButton.addEventListener('click', async () => {
+        const tokenUrl = payButton.getAttribute('data-token-url');
+        const syncUrl = payButton.getAttribute('data-sync-url');
+        if (!tokenUrl || !syncUrl) return;
+
+        const originalText = payButton.textContent;
+        payButton.disabled = true;
+        payButton.setAttribute('aria-busy', 'true');
+        payButton.textContent = 'Menyiapkan Midtrans Snap...';
+        setStatus('loading', 'Menghubungi Midtrans Sandbox untuk membuat Snap Token...');
+
+        try {
+            const response = await fetch(tokenUrl, {
+                method: 'POST',
+                headers: { Accept: 'application/json', 'X-CSRF-TOKEN': csrfToken },
+            });
+            const payload = await response.json();
+            if (!response.ok || !payload.data?.snap_token) {
+                throw new Error(payload.error || 'Gagal mendapatkan Snap Token dari Midtrans.');
+            }
+
+            const { snap_token: snapToken, redirect_url: redirectUrl } = payload.data;
+            if (typeof window.snap !== 'undefined' && typeof window.snap.pay === 'function') {
+                setStatus('loading', 'Jendela pembayaran Midtrans Snap terbuka. Selesaikan simulasi pembayaran.');
+                window.snap.pay(snapToken, {
+                    onSuccess: () => syncStatus(syncUrl),
+                    onPending: () => syncStatus(syncUrl),
+                    onError: () => setStatus('error', 'Pembayaran gagal diproses di Midtrans. Silakan coba lagi.'),
+                    onClose: () => syncStatus(syncUrl),
+                });
+            } else if (redirectUrl) {
+                window.open(redirectUrl, '_blank', 'noopener');
+                setStatus('loading', 'Halaman Midtrans dibuka di tab baru. Setelah selesai, klik Periksa Status Midtrans.');
+            } else {
+                throw new Error('Skrip Midtrans Snap belum siap. Muat ulang halaman lalu coba kembali.');
+            }
+        } catch (error) {
+            const msg = error instanceof Error ? error.message : 'Terjadi gangguan saat menghubungi Midtrans.';
+            setStatus('error', msg);
+        } finally {
+            payButton.disabled = false;
+            payButton.removeAttribute('aria-busy');
+            payButton.textContent = originalText;
+        }
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     initMobileMenu();
     initLoginPortalTabs();
@@ -233,4 +327,5 @@ document.addEventListener('DOMContentLoaded', () => {
     initFilePreviews();
     initNjkbLookup();
     initApplyReferenceNjkb();
+    initMidtransPayment();
 });

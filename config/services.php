@@ -46,4 +46,11 @@ return [
         'timeout' => (int) env('REGION_API_TIMEOUT', 3),
     ],
 
+    'midtrans' => [
+        'is_production' => (bool) env('MIDTRANS_IS_PRODUCTION', false),
+        'server_key' => (string) env('MIDTRANS_SERVER_KEY', ''),
+        'client_key' => (string) env('MIDTRANS_CLIENT_KEY', ''),
+        'timeout' => (int) env('MIDTRANS_TIMEOUT', 10),
+    ],
+
 ];
